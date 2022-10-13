@@ -11,7 +11,7 @@ class Task(Model):
 class Todo(Model):
     title = CharField(max_length=256, blank=False)
     complete = BooleanField(default=False)
-    task = ForeignKey(Task, on_delete=CASCADE)
+    task = ForeignKey(Task, on_delete=CASCADE, related_name='todos')
 
     def __str__(self):
         return self.title + f" [{'X' if self.complete else ' '}]"
