@@ -1,4 +1,4 @@
-from django.db.models import Model, IntegerField, CharField, ForeignKey, BooleanField, CASCADE
+from django.db.models import Model, IntegerField, CharField, ForeignKey, BooleanField, CASCADE, ManyToManyField
 
 
 class Task(Model):
@@ -15,5 +15,20 @@ class Todo(Model):
 
     def __str__(self):
         return self.title + f" [{'X' if self.complete else ' '}]"
+
+
+class Worker(Model):
+    name = CharField(max_length=256)
+
+    def __str__(self):
+        return self.name
+
+
+class Team(Model):
+    name = CharField(max_length=256)
+    workers = ManyToManyField(Worker, related_name='workers')
+
+    def __str__(self):
+        return self.name
 
 
