@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from .models import Task, Todo, Worker, Team
-from django.db.models import Prefetch
+from django.db.models import Prefetch, QuerySet
 
 
 # Create your views here.
@@ -10,16 +10,16 @@ def seed_tasks():
     # Create software task.
     # Task.objects.create() creates the Task immediately.
     # It also allows us to set initial values.
-    software_task = Task.objects.create(name="Produce software")
+    software_task = Task.objects.get_or_create(name="Produce software")[0]
     # The task is already created, so we can use it as a foreign key
-    Todo.objects.create(task=software_task, title="Write code")
-    Todo.objects.create(task=software_task, title="Compile source")
-    Todo.objects.create(task=software_task, title="Test program")
+    Todo.objects.get_or_create(task=software_task, title="Write code")
+    Todo.objects.get_or_create(task=software_task, title="Compile source")
+    Todo.objects.get_or_create(task=software_task, title="Test program")
 
-    task = Task.objects.create(name="Brew coffee")
-    Todo.objects.create(task=task, title="Pour water")
-    Todo.objects.create(task=task, title="Pour coffee")
-    Todo.objects.create(task=task, title="Turn on")
+    task = Task.objects.get_or_create(name="Brew coffee")[0]
+    Todo.objects.get_or_create(task=task, title="Pour water")
+    Todo.objects.get_or_create(task=task, title="Pour coffee")
+    Todo.objects.get_or_create(task=task, title="Turn on")
 
 
 def seed_workers():
@@ -60,3 +60,18 @@ def print_incomplete_tasks_and_todos():
         for todo in task.pre_todos:
             if not todo.complete:
                 print(todo)
+
+
+def print_teams_without_tasks(do_print=False) -> QuerySet[Team]:
+    """
+    :param do_print: Print the contents of the query, this will cause it to be evaluated.
+    :return: A Queryset of teams with any tasks.
+    """
+
+    query = Team.objects.filter(tasks__isnull=True, current_task__isnull=True)
+
+    # We cannot print the query without evaluating it, this makes it impossible to modify it further.
+    #for team in query:
+    #    print(team)
+
+    return query

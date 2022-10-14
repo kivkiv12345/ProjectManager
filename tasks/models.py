@@ -3,6 +3,7 @@ from django.db.models import Model, IntegerField, CharField, ForeignKey, Boolean
 
 class Task(Model):
     name = CharField(max_length=256, blank=False)
+    team = ForeignKey('Team', on_delete=SET_NULL, null=True, related_name='tasks')
 
     def __str__(self):
         return self.name
@@ -27,8 +28,8 @@ class Worker(Model):
 
 class Team(Model):
     name = CharField(max_length=256)
-    workers = ManyToManyField(Worker, related_name='workers')
-    current_task = ForeignKey(Task, on_delete=SET_NULL, null=True, related_name='tasks')
+    workers = ManyToManyField(Worker, related_name='teams')
+    current_task = ForeignKey(Task, on_delete=SET_NULL, null=True, related_name='teams')
 
     def __str__(self):
         return self.name
