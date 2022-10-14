@@ -1,6 +1,9 @@
 """ Here be the functions the tasks require us to create. """
 
-from django.db.models import QuerySet, Prefetch
+from django.db.models import QuerySet, Prefetch, Count, ExpressionWrapper, IntegerField, Q, Window, F, DecimalField, \
+    FloatField
+from django.db.models.functions import Coalesce, Round
+
 from tasks.models import Task, Todo, Team, Worker
 
 
@@ -104,7 +107,31 @@ def print_team_current_task(do_print=True):
     return query
 
 
+def print_team_progress(do_print=False):
+    """
+    :param do_print: Print the contents of the query, this will cause it to be evaluated.
+    :return: A Queryset of teams with todo completion percentage.
+    """
+
+    # Annotations allow us to attach extra fields to instances returned by the query.
+    # These fields are calculated in the database,
+    # so we don't incur any overhead by calculating the percentage in Python.
+    query = Team.objects.all().select_related('current_task').annotate(
+        task_cnt=Count('current_task__todos'),
+        task_cnt_complete=Count('current_task__todos', filter=Q(current_task__todos__complete=True)),
+        task_cnt_percent=Round(Coalesce(100.0 * F('task_cnt_complete') / F('task_cnt'), 0, output_field=FloatField()), precision=2)
+    )
+    # F() instances represent columns in the database, so we can defer to their values there.
+    # Count() allows us to count the amount of objects in the related set.
+
+    if do_print:
+        for team in query:
+            print(f"{team.name}\t{team.task_cnt_percent}%")
+
+    return query
+
+
 def hook_init():
     """ Will run once when Django starts """
 
-    print_team_current_task()
+    print_team_progress()
