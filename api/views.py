@@ -2,10 +2,12 @@
 
 from typing import Type
 
-from django.db.models import Model
-from django.shortcuts import render
+from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor, ReverseOneToOneDescriptor, \
+    ManyToManyDescriptor
 from django.urls import path
 from rest_framework import status
+from django.db.models import Model
+from django.shortcuts import render
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
@@ -19,6 +21,26 @@ _UPDATE_SUFFIX = '-update'
 _DELETE_SUFFIX = '-delete'
 
 
+def generic_serializer(crud_model: Type[Model], depth_limit: int = 0) -> Type[ModelSerializer]:
+    """
+    Creates a Generic recursive ModelSerializer for the provided model
+
+    :param crud_model: Model subclass for which a serializer should be created.
+    :param depth_limit: Maximum relation depth, below which objects won't be nested.
+
+    :returns: The new ModelSerializer class.
+    """
+
+    class GenericSerializer(ModelSerializer):
+
+        class Meta:
+            model = crud_model
+            fields = '__all__'
+            depth = depth_limit
+
+    return GenericSerializer
+
+
 def generic_crud(crud_model: Type[Model]) -> tuple[path, path, path, path, path]:
     """
     Creates generic CRUD views for the specified model
@@ -28,26 +50,24 @@ def generic_crud(crud_model: Type[Model]) -> tuple[path, path, path, path, path]
     :returns: A tuple of path() instances to be inserted into your app's urlpatterns
     """
 
-    class Serializer(ModelSerializer):
-        class Meta:
-            model = crud_model
-            fields = '__all__'
+    # TODO Kevin: Subclass ModelSerializer to support saving nested
+    GenericSerializer = generic_serializer(crud_model, 2)
 
     @api_view(['GET'])
     def generic_get_list(request: Request):
         instances = crud_model.objects.all()
-        serializer = Serializer(instances, many=True)
+        serializer = GenericSerializer(instances, many=True)
         return Response(serializer.data)
 
     @api_view(['GET'])
     def generic_get_detail(request: Request, pk: int):
         instance = crud_model.objects.get(pk=pk)
-        serializer = Serializer(instance, many=False)
+        serializer = GenericSerializer(instance, many=False)
         return Response(serializer.data)
 
     @api_view(['POST'])
     def generic_create(request: Request):
-        serializer = Serializer(data=request.data)
+        serializer = GenericSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
         return Response(serializer.data)
@@ -55,7 +75,7 @@ def generic_crud(crud_model: Type[Model]) -> tuple[path, path, path, path, path]
     @api_view(['POST'])
     def generic_update(request: Request, pk: int):
         instance = crud_model.objects.get(pk)
-        serializer = Serializer(instance=instance, data=request.data)
+        serializer = GenericSerializer(instance=instance, data=request.data)
         if serializer.is_valid():
             serializer.save()
         return Response(serializer.data)
