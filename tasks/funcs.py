@@ -107,7 +107,7 @@ def print_team_current_task(do_print=True):
     return query
 
 
-def print_team_progress(do_print=False):
+def print_team_progress(do_print=False) -> QuerySet[Team]:
     """
     :param do_print: Print the contents of the query, this will cause it to be evaluated.
     :return: A Queryset of teams with todo completion percentage.
@@ -134,4 +134,4 @@ def print_team_progress(do_print=False):
 def hook_init():
     """ Will run once when Django starts """
 
-    print_team_progress()
+    print_team_progress(True)
