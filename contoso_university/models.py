@@ -20,17 +20,23 @@ class Department(Model):
     start_date = DateField()
     instructor = ForeignKey('Instructor', on_delete=SET_NULL, null=True)
 
+    def __str__(self):
+        return self.name
+
 
 class Course(Model):
     title = CharField(max_length=128)
     credits = SmallIntegerField()
-    department = ForeignKey(Department, on_delete=CASCADE)
+    department = ForeignKey(Department, on_delete=CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.title} [{self.credits}]"
 
 
 class Instructor(Person):
 
     hire_date = DateField(auto_now_add=True)
-    courses = ManyToManyField(Course)
+    courses = ManyToManyField(Course, null=True, blank=True)
 
 
 class OfficeAssignment(Model):
@@ -45,4 +51,4 @@ class Student(Person):
 class Enrollment(Model):
     course = ForeignKey(Course, on_delete=CASCADE)
     student = ForeignKey(Student, on_delete=CASCADE)
-    grade = SmallIntegerField()
+    grade = SmallIntegerField(null=True, blank=True)

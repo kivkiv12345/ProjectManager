@@ -5,17 +5,12 @@ from typing import Type
 from django.db.models import Model
 from django.shortcuts import render
 from django.urls import path
+from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.serializers import ModelSerializer
 
-
-# Create your views here.
-# @api_view(['GET'])
-# def get_data(request):
-#     person = {'name': 'Dennus', 'age': 28}
-#     return Response()
 
 _LIST_SUFFIX = '-list'
 _DETAIL_SUFFIX = '-detail'
@@ -28,17 +23,10 @@ def generic_crud(crud_model: Type[Model]) -> tuple[path, path, path, path, path]
     """
     Creates generic CRUD views for the specified model
 
-    :param crud_model: Model o create web API CRUD operations for
+    :param crud_model: Model to create web API CRUD operations for
 
     :returns: A tuple of path() instances to be inserted into your app's urlpatterns
     """
-
-    # Serializer = type('Serializer', (ModelSerializer, ), {
-    #     'Meta': type('Meta', (), {
-    #         'model': model,
-    #         'fields': '__all__'
-    #     })
-    # })
 
     class Serializer(ModelSerializer):
         class Meta:
@@ -75,7 +63,7 @@ def generic_crud(crud_model: Type[Model]) -> tuple[path, path, path, path, path]
     @api_view(['DELETE'])
     def generic_delete(request: Request, pk: int):
         crud_model.objects.filter(pk=pk).delete()
-        return Response(200)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     model_name = crud_model.__name__.lower()
 
@@ -94,7 +82,13 @@ def generic_crud(crud_model: Type[Model]) -> tuple[path, path, path, path, path]
     )
 
 
-def crud_overview(urls: list[path]):
+def crud_overview(urls: list[path]) -> None:
+    """
+    Generate a view listing web API CRUD operations.
+    The new view will be appended to the provided list.
+
+    :param urls: urlpatterns list to generate the view for.
+    """
 
     overview_dict = {
         'LIST': [url.pattern._route for url in urls if url.name.endswith(_LIST_SUFFIX)],
@@ -108,6 +102,7 @@ def crud_overview(urls: list[path]):
 
     @api_view(['GET'])
     def overview_get(request):
+        """ Mutate the overview dictionary with absolute URLs """
 
         # Show absolute URLs for the web API
         full_url = request._request.path
