@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'tasks',
     'contoso_university',
     'rest_framework',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
