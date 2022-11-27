@@ -85,7 +85,7 @@ class OfficeAssignmentManager(Manager):
 
 class OfficeAssignment(Model):
     location = CharField(max_length=128)
-    instructor = OneToOneField(Instructor, on_delete=CASCADE, primary_key=True)
+    instructor = OneToOneField(Instructor, on_delete=CASCADE, primary_key=True, related_name='office_assignment')
 
     objects = OfficeAssignmentManager
 

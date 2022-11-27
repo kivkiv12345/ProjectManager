@@ -94,11 +94,11 @@ def generic_crud(crud_model: Type[Model]) -> tuple[path, path, path, path, path]
     delete_url = f"{model_name}{_DELETE_SUFFIX}"
 
     return (
-        path(f"{list_url}/", generic_get_list, name=list_url),
-        path(f"{detail_url}/<str:pk>/", generic_get_detail, name=detail_url),
-        path(f"{create_url}/", generic_create, name=create_url),
-        path(f"{update_url}/<str:pk>/", generic_update, name=update_url),
-        path(f"{delete_url}/<str:pk>/", generic_delete, name=delete_url),
+        path(f"{list_url}/", generic_get_list, name=f"api-{list_url}"),
+        path(f"{detail_url}/<str:pk>/", generic_get_detail, name=f"api-{detail_url}"),
+        path(f"{create_url}/", generic_create, name=f"api-{create_url}"),
+        path(f"{update_url}/<str:pk>/", generic_update, name=f"api-{update_url}"),
+        path(f"{delete_url}/<str:pk>/", generic_delete, name=f"api-{delete_url}"),
     )
 
 
