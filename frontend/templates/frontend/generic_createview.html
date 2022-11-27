@@ -1,0 +1,45 @@
+{% extends "layouts/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %} Create {% endblock %}
+
+{% block body_class %} sidebar-mini {% endblock body_class %}
+
+{% block stylesheets %}
+{% endblock stylesheets %}
+
+{% block content %}
+<div class="content-wrapper">
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card mt-3">
+                        <div class="card">
+                            <div class="card-header">
+                                Create {{current_model}}
+                            </div>
+                            <div class="card-body">
+                                 {% crispy form %}
+                            </div>
+                            <div>
+                                {% if object %}
+                                    <a class="btn btn-danger" href="{% url delete_url object.pk %}">Delete</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock content %}
+
+{% block javascripts %}
+
+    <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
+
+
+{% endblock javascripts %}

@@ -1,0 +1,38 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} {{ object_name }} {% endblock %}
+
+{% block body_class %} sidebar-mini {% endblock body_class %}
+
+{% block stylesheets %}
+{% endblock stylesheets %}
+
+{% block content %}
+
+<div>
+    <section>
+            <div>
+                <div ><h1>Delete {{ object_name }}: {{ instance_name }}?</h1></div>
+            </div>
+            <div>
+                <form method="POST">
+                    {% csrf_token %}
+                    <div>
+                        <button type="submit">Delete</button>
+                        <a href="#" onclick="javascript:history.go(-1);">Cancel</a>
+                    </div>
+                </form>
+
+            </div>
+    </section>
+</div>
+
+{% endblock content %}
+
+{% block javascripts %}
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
+
+
+{% endblock javascripts %}

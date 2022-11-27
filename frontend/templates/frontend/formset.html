@@ -1,0 +1,52 @@
+{% load crispy_forms_tags %}
+{% load static %}
+
+<hr>
+{% for inline in formset %}
+
+    <table>
+        {{ inline.management_form|crispy }}
+        {% for form in inline.forms %}
+            {% if forloop.first %}
+                <thead>
+                <tr>
+                    {% for field in form.visible_fields %}
+                        <th>
+                            {{ field.label|capfirst }}
+                        </th>
+                    {% endfor %}
+                </tr>
+                </thead>
+            {% endif %}
+            <tr class="{% cycle 'row1' 'row2' %} formset_row-{{ inline.prefix }}">
+                {% for field in form.visible_fields %}
+                <td>
+                    {# Include the hidden fields in the form #}
+                    {% if forloop.first %}
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+                    {% endif %}
+                    {{ field.errors.as_ul }}
+                    {{ field|as_crispy_field }}
+                </td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+
+
+    </table>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js">
+    </script>
+    <script src="{% static 'mycollections/libraries/django-dynamic-formset/jquery.formset.js' %}">
+    </script>
+    <script type="text/javascript">
+        $('.formset_row-{{ inline.prefix }}').formset({
+            addText: 'add another',
+            deleteText: 'remove',
+            prefix: '{{ inline.prefix }}',
+        });
+    </script>
+<br>
+{% endfor %}
+

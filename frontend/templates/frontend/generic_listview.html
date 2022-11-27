@@ -1,0 +1,274 @@
+{% extends "layouts/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %} {{modeltitles.1.title}} {% endblock %}
+
+{% block body_class %} sidebar-mini {% endblock body_class %}
+
+{% block stylesheets %}
+{% endblock stylesheets %}
+
+{% block content %}
+
+<style>
+.shadow_method{
+  box-shadow:none;
+}
+.shadow_method:hover{
+  box-shadow:inset 0 0 0 99999px rgba(200,200,200,0.5);
+}
+</style>
+
+    <div class="content-wrapper">
+        <section class="content">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <div class="col"><h2 class="card-title">{{modeltitles.1.title}}</h2></div>
+                                <div class="col-right">
+                                    <a href="{% url modeltitles.2 %}">
+                                        <button type="button" class="btn btn-outline-info float-right mr-2">Create {{modeltitles.0.title}}</button>
+                                    </a>
+                                </div>
+                            </div>
+                            <!-- /.card-header -->
+                            <div class="card-body">
+                                <form method="post" id="AllForm">
+                                    {% csrf_token %}
+                                    <div class="row">
+                                        <div class="col-5" id="ActionForm">
+                                            {% if form %}
+                                                {{form}}
+                                                <button class="btn btn-success btn-sm" type="submit">Go</button>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="text" name="search_term" value="{{ previous_search_term }}">
+                                            <button class="btn btn-success btn-sm" type="submit" onclick="document.getElementById('ActionForm').remove()">Search</button>
+                                        </div>
+                                        <div class="col" style="text-align:right;">
+                                            {% if is_paginated %}
+
+                                              {% if page_obj.has_previous %}
+                                                <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page=1">First</a>
+                                                <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                                              {% endif %}
+
+                                              {% for num in page_obj.paginator.page_range %}
+                                                {% if page_obj.number == num %}
+                                                  <a class="btn btn-info mb-4" href="?{{ currentparams }}&page={{ num }}">{{ num }}</a>
+                                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                                  <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ num }}">{{ num }}</a>
+                                                {% endif %}
+                                              {% endfor %}
+
+                                              {% if page_obj.has_next %}
+                                                <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ page_obj.next_page_number }}">Next</a>
+                                                <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+                                              {% endif %}
+
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-10" style="display: inline-block; float: left;">
+                                            <table class="table table-bordered table-hover table-striped" style="display: block; overflow: auto;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 10px;"></th>
+                                                        {% if list_display and object_pk_and_value_list %}
+                                                            {% for name, value in list_display.items %}
+                                                                {% if value in field_names %}
+                                                                    <th class="shadow_method" style="max-width: 5%;">
+                                                                        <input id="th-{{ name }}" hidden type="submit" value="{{ value }}" name="order_request" onclick="document.getElementById('ActionForm').remove()">
+                                                                        {% if name != '  str  ' %}
+                                                                            <label style="cursor: pointer;" for="th-{{ name }}">{{ name.title }}</label>
+                                                                        {% else %}
+                                                                            <label style="cursor: pointer;" for="th-{{ name }}">{{ modeltitles.0.title }}</label>
+                                                                        {% endif %}
+
+                                                                        {% if value in active_orderings %}
+                                                                            <input id="remove-{{ name }}" hidden type="submit" name="remove_order" value="{{ value }}" onclick="document.getElementById('ActionForm').remove()">
+                                                                            <label style="cursor: pointer; float: right;" for="remove-{{ name }}"><img src="/static/admin/img/icon-no.svg" alt="Remove"></label>
+                                                                        {% endif %}
+                                                                    </th>
+                                                                {% else %}
+                                                                    <th>{% if name != '  str  ' %} {{ name.title }} {% else %} {{ modeltitles.0.title }} {% endif %}</th>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        {% elif list_display %}
+                                                            {% for name in list_display %}
+                                                                <th style="max-width: 5%;">{{ name.title }}</th>
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <th style="max-width: 5%;">{{ modeltitles.0.title }}</th>
+                                                        {% endif %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for pk, values in object_pk_and_value_list %}
+                                                        <tr>
+                                                            <td style="width: 10px;">
+                                                                <input class="checkbox" name="checker" type="checkbox" id="checkbox_{{instance.id}}" value="{{instance.id}}">
+                                                            </td>
+                                                            {% if list_display %}
+                                                                {% for key, value in values.items %}
+                                                                    {% if forloop.first and list_display_links is None %}
+                                                                        <td>
+                                                                            <a href="{% url modeltitles.3 pk %}">
+                                                                                {% if value == None %}
+                                                                                    {{ empty_value_display }}
+                                                                                {% elif value == False %}
+                                                                                    <img src="/static/admin/img/icon-no.svg" alt="False">
+                                                                                {% elif value == True %}
+                                                                                    <img src="/static/admin/img/icon-yes.svg" alt="True">
+                                                                                {% else %}
+                                                                                    {{value}}
+                                                                                {% endif %}
+                                                                            </a>
+                                                                        </td>
+                                                                    {% elif key in list_display_links %}
+                                                                        <td>
+                                                                            <a href="{% url modeltitles.3 pk %}">
+                                                                                {% if value == None %}
+                                                                                    {{ empty_value_display }}
+                                                                                {% elif value == False %}  <!-- TODO Kevin HTML: Boolean operators are broken in Django template logic, consider removing True/False icons !-->
+                                                                                    <img src="/static/admin/img/icon-no.svg" alt="False">
+                                                                                {% elif value == True %}
+                                                                                    <img src="/static/admin/img/icon-yes.svg" alt="True">
+                                                                                {% else %}
+                                                                                    {{value}}
+                                                                                {% endif %}
+                                                                            </a>
+                                                                        </td>
+                                                                    {% else %}
+                                                                        <td>
+                                                                            {% if value == None %}
+                                                                                {{ empty_value_display }}
+                                                                            {% elif value == False %}
+                                                                                <img src="/static/admin/img/icon-no.svg" alt="False">
+                                                                            {% elif value == True %}
+                                                                                <img src="/static/admin/img/icon-yes.svg" alt="True">
+                                                                            {% else %}
+                                                                                {{value}}
+                                                                            {% endif %}
+                                                                        </td>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            {% elif instance.version %}
+                                                                <td style="max-width: 5%;"><a href="{% url modeltitles.3 instance.id %}">{{ instance.version }}</a></td>
+                                                            {% else %}
+                                                                <td style="max-width: 5%;"><a href="{% url modeltitles.3 instance.id %}">{{ instance.name }}</a></td>
+                                                            {% endif %}
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+
+                                        <div class="col-2" style="float: right; width: 80%;">
+                                            <div class="card">
+                                              <div class="card-header">
+                                                <h3 class="card-title">
+                                                  <i class="ion ion-clipboard mr-1"></i>
+                                                  FILTER
+                                                </h3>
+                                                {% if changelist_filter.filter_specs %}
+                                                    <div class="card-tools">
+                                                      <button type="button" class="btn bg-info btn-sm" data-card-widget="collapse">
+                                                        <i class="fas fa-minus"></i>
+                                                      </button>
+                                                    </div>
+                                                {% endif %}
+                                              </div>
+                                              <!-- /.card-header -->
+                                              {% if changelist_filter.filter_specs %}
+                                                  <div class="card-body">
+                                                    <ul class="todo-list" data-widget="todo-list" style="margin-left: -8%; margin-right: -8%;">
+                                                      {% for filter in changelist_filter.filter_specs %}
+                                                        {% if filter.lookup_choices %}
+                                                            <h5>By {{ filter.title }}</h5>
+
+                                                            <li class="shadow_method" id="all-li-{{ forloop.parentloop.counter0 }}-{{forloop.counter}}" {% if not filter.lookup_kwarg in currentparams %} style="background-color: #41cd56;" {% endif %}>
+                                                              <div class="icheck-primary d-inline">
+                                                                <input id="all-{{ forloop.parentloop.counter0 }}-{{forloop.counter}}" hidden type="submit" value="{{ filter.lookup_kwarg }}=all" name="filter_request" onclick="document.getElementById('ActionForm').remove()">
+                                                                <label style="cursor: pointer;" for="all-{{ forloop.parentloop.counter0 }}-{{forloop.counter}}">All</label>
+                                                              </div>
+                                                            </li>
+
+                                                            {% for choice in filter.lookup_choices %}
+                                                                <li class="shadow_method" id="li-{{ forloop.parentloop.counter0 }}-{{forloop.counter}}" {% if choice.2 %} style="background-color: #41cd56;" {% endif %}>
+                                                                  <div  class="icheck-primary d-inline">
+                                                                    <input id="{{ forloop.parentloop.counter0 }}-{{forloop.counter}}" hidden type="submit" value="{{ filter.lookup_kwarg }}={{ choice.0 }}" name="filter_request" onclick="document.getElementById('ActionForm').remove()">
+                                                                    <label style="cursor: pointer;" for="{{ forloop.parentloop.counter0 }}-{{forloop.counter}}">{{ choice.1 }}</label>
+                                                                  </div>
+                                                                </li>
+                                                            {% endfor %}
+                                                        {% endif %}
+                                                      {% endfor %}
+
+                                                    </ul>
+                                                  </div>
+                                              {% endif %}
+                                              <!-- /.card-body -->
+                                                <!-- TODO Kevin HTML: Uncomment this when custom filters are made.
+                                                <div class="card-header">
+                                                  <a href="#" data-toggle="modal" data-target="#modalTodoForm">
+                                                  <button type="button" class="btn btn-info float-right">
+                                                    <i class="fas fa-plus"></i>
+                                                    Custom Filter TODO
+                                                  </button>
+                                                </a>
+                                              </div>
+                                                !-->
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="col" style="text-align:right;">
+                                        {% if is_paginated %}
+
+                                          {% if page_obj.has_previous %}
+                                            <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page=1">First</a>
+                                            <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                                          {% endif %}
+
+                                          {% for num in page_obj.paginator.page_range %}
+                                            {% if page_obj.number == num %}
+                                              <a class="btn btn-info mb-4" href="?{{ currentparams }}&page={{ num }}">{{ num }}</a>
+                                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                              <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ num }}">{{ num }}</a>
+                                            {% endif %}
+                                          {% endfor %}
+
+                                          {% if page_obj.has_next %}
+                                            <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ page_obj.next_page_number }}">Next</a>
+                                            <a class="btn btn-outline-info mb-4" href="?{{ currentparams }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+                                          {% endif %}
+
+                                        {% endif %}
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+{% endblock content %}
+
+{% block javascripts %}
+
+    <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
+
+
+{% endblock javascripts %}
