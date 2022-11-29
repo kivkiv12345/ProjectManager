@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from copy import copy
-from typing import Iterable, Sequence
-
 from django.apps import apps
 from datetime import datetime
+from inspect import isabstract
 from django.contrib import admin
 from django.db import transaction
-from django.db.models import QuerySet, Model
 from django.shortcuts import render
 from django.urls import reverse_lazy
+from typing import Iterable, Sequence, Type
 from crispy_forms.helper import FormHelper
+from django.db.models import QuerySet, Model
 from crispy_forms.utils import TEMPLATE_PACK
 from django.http import HttpResponseRedirect
 from django.template.loader import render_to_string
@@ -98,7 +99,47 @@ class _UseAdminValue(metaclass=_UseAdminValueMeta):
     """ Sentinel class used by generic views when an attributes should be derived from their respective ModelAdmin """
 
 
-class GenericListView(ListView):  # Using this generic ListView; we only need to indicate which model we would like a list view for, and the rest will be handled automatically
+class AdminDependantMixIn:
+    """ Useful for views that would like access to the/a ModelAdmin for their model (whether real or fake). """
+
+    adminmodel: ModelAdmin | None = None
+    uses_real_admin: bool = None  # Is the current model registered  # TODO Kevin: probably not a good solution.
+
+    model: Model = None  # Should be implemented by subclass
+
+    # Fake ModelAdmins are put here for reuse, so we don't create too many classes.
+    _fake_modeladmin_cache: dict[Type[Model], Type[ModelAdmin]] = {}
+
+    @classmethod
+    def _get_admin_model(cls) -> ModelAdmin:
+        assert cls.model is not None, '_get_admin_model() should not be called before a model has been defined.'
+        try:
+            cls.adminmodel = admin.site._registry[cls.model]
+            cls.uses_real_admin = True
+        except KeyError:
+            if cls.model not in AdminDependantMixIn._fake_modeladmin_cache:
+                AdminDependantMixIn._fake_modeladmin_cache[cls.model] = type(f"{cls.model._meta.object_name}Admin", (ModelAdmin,), {'model': cls.model})
+            # Make an instance of the ModelAdmin for every class.
+            cls.adminmodel = AdminDependantMixIn._fake_modeladmin_cache[cls.model](cls.model, admin.site)
+            cls.uses_real_admin = False
+
+        return cls.adminmodel
+
+    def __init_subclass__(cls) -> None:
+        # We need to be a bit careful about when we see/create the subclasses, as admin.py must come first
+        super().__init_subclass__()
+
+        # Not strictly necessary, maybe the user wants to use a fake admin.
+        # TODO Kevin: Uncomment when isabstract() starts returning True,
+        #   for ABC subclasses that dont define any @abstractmethod.
+        #   We will currently get an obscure error if not subclass defines a model.
+        #assert isabstract(cls) or cls.model is not None, f"{cls.__qualname__} should implement a 'model' attribute"
+
+        if cls.model is not None:  # Wait for a subclass that defines a model
+            cls._get_admin_model()
+
+
+class GenericListView(AdminDependantMixIn, ABC, ListView):  # Using this generic ListView; we only need to indicate which model we would like a list view for, and the rest will be handled automatically
     template_name = "frontend/generic_listview.html"
     context_object_name = "objects"
     paginate_by = 50  # Amount of objects displayed per page
@@ -110,9 +151,6 @@ class GenericListView(ListView):  # Using this generic ListView; we only need to
     exclude: list[str] = _UseAdminValue  # Determines if certain fields should be excluded from the ListView. Useful if they have been grabbed from the ModelAdmin.
     ordering: list[str] | str = _UseAdminValue  # Set to name of field to order by, uses the ModelAdmin value by default.
 
-    adminmodel: ModelAdmin | None = None
-    uses_real_admin: bool = None  # Is the current model registered  # TODO Kevin: Not a good solution.
-
     # Set to False, to disable all attributes from deriving values from the ModelAdmin.
     # May require certain variables to be set manually if False
     # TODO Kevin: Currently requires all variables be set manually, so what's the point?
@@ -122,25 +160,9 @@ class GenericListView(ListView):  # Using this generic ListView; we only need to
     # use_admin_list_display = True  # Determines whether to exclude fields not included in the ModelAdmin list_display
     # TODO Kevin View: Perhaps add an alias feature for list_display, or find a better way to change something like 'Indented Title' for asset to 'Title'
 
-    @classmethod
-    def _get_admin_model(cls) -> ModelAdmin:
-        try:
-            cls.adminmodel = admin.site._registry[cls.model]
-            cls.uses_real_admin = True
-        except KeyError:
-            cls.adminmodel = type(f"{cls.model._meta.object_name}Admin", (ModelAdmin,), {'model': cls.model})
-            cls.uses_real_admin = False
-
-        return cls.adminmodel
-
-    def __init_subclass__(cls) -> None:
-        # We need to be a bit careful about when we see/create the subclasses, as admin.py must come first
-        super().__init_subclass__()
-        cls._get_admin_model()
-
     def get_ordering(self) -> Sequence[str] | None:
-        if (self.ordering is _UseAdminValue and self.use_admin_values) and self.model in admin.site._registry and admin.site._registry[self.model].ordering:
-            return admin.site._registry[self.model].ordering or self.model._meta.ordering
+        if self.ordering is _UseAdminValue and self.use_admin_values:
+            return self.adminmodel.get_ordering(self.request)
         elif self.ordering or self.model._meta.ordering:
             return self.ordering or self.model._meta.ordering
         elif 'MPTTModel' in [cls.__name__ for cls in self.model.__bases__]:
@@ -149,15 +171,12 @@ class GenericListView(ListView):  # Using this generic ListView; we only need to
             return ['-pk']
 
     def get_queryset(self) -> QuerySet:
-        adminmodel = self._get_admin_model()
+        adminmodel = self.adminmodel
 
         if len(self.request.GET.get('o', '').split('|')) > 1:
             order = self.request.GET.get('o').split('|')
         else:
-            try:
-                order = [self.request.GET.get('o', (self.get_ordering()[0]))]
-            except TypeError:
-                order = [self.request.GET.get('o', (self.get_ordering()))]
+            order = (self.request.GET.get('o'),) or self.get_ordering()
 
         try:
             filter_terms = dict([(i, (None if dict(self.request.GET)[i][0] == 'None' else dict(self.request.GET)[i][0])) for i in dict(self.request.GET) if i not in ['o', self.page_kwarg, 'q']])
@@ -176,7 +195,7 @@ class GenericListView(ListView):  # Using this generic ListView; we only need to
         if self.list_display is _UseAdminValue and self.use_admin_values:
             return self.adminmodel.get_list_display(self.request)  # TODO Kevin: Dunno if this works
         # Consider raising exceptions if self.list_display entries are invalid fields
-        return self.list_display
+        return self.list_display or ()  # Don't return _UseAdminValue
 
     def get_list_filter(self) -> Iterable[str]:
         if self.list_filter is _UseAdminValue and self.use_admin_values:
@@ -199,8 +218,8 @@ class GenericListView(ListView):  # Using this generic ListView; we only need to
         return fieldname.lower().strip('_').replace('_', ' ')
 
     def get_context_data(self, *, object_list=None, **kwargs):
-        # TODO Kevin: The following check should probably not occur on runtime.
-        adminmodel = self._get_admin_model()
+        # TODO Kevin: The following check should probably not occur on runtime, if at all.
+        adminmodel = self.adminmodel
         if self.uses_real_admin:  # Check if the current model is registered as a ModelAdmin, if not; don't use values from there.
             if self.list_per_page:
                 self.paginate_by = self.list_per_page
@@ -308,15 +327,14 @@ class GenericListView(ListView):  # Using this generic ListView; we only need to
         return HttpResponseRedirect(f"{request.path}?{request.META['QUERY_STRING']}")  # Fallback option for errors or filters already in use
 
 
-class GenericCreateView(CreateView):
-    model: Model = None
+class GenericCreateView(AdminDependantMixIn, ABC, CreateView):
     form_class = None
     inlineform_fields = []
     template_name = 'frontend/generic_createview.html'
 
     def get_context_data(self, **kwargs):
         data = super(GenericCreateView, self).get_context_data(**kwargs)
-        adminmodel = admin.site._registry[self.model]
+        adminmodel = self.adminmodel
         inlinelist = []
         if adminmodel.inlines:
             for inline in adminmodel.inlines:
@@ -357,7 +375,7 @@ class GenericCreateView(CreateView):
                                     if i in inline.model._meta._property_names:
                                         continue
                                     self.fields[i].widget.attrs['readonly'] = True
-                        except:
+                        except Exception:
                             pass
 
                         if hasattr(self.inlinemodel, 'formfield_overrides'):
@@ -413,15 +431,14 @@ class GenericCreateView(CreateView):
         return reverse_lazy(self.model._meta.model_name)
 
 
-class GenericUpdateView(UpdateView):
-    model = None
+class GenericUpdateView(AdminDependantMixIn, ABC, UpdateView):
     form_class = None
     inlineform_fields = []
     template_name = 'frontend/generic_createview.html'
 
     def get_context_data(self, **kwargs):
         data = super(GenericUpdateView, self).get_context_data(**kwargs)
-        adminmodel = admin.site._registry[self.model]
+        adminmodel = self.adminmodel
         inlinelist = []
         if adminmodel.inlines:
             for inline in adminmodel.inlines:
