@@ -167,17 +167,17 @@ def generic_crud(crud_model: Type[Model], exclude: Iterable[CrudOps] = None) -> 
 
     operations: list[path] = []
     if exclude is None or CrudOps.LIST not in exclude:
-        operations.append(path(f"{list_url}/", generic_get_list, name=list_url))
+        operations.append(path(f"{list_url}/", generic_get_list, name=f"api-{list_url}"))
     if exclude is None or CrudOps.DETAIL not in exclude:
-        operations.append(path(f"{detail_url}/<str:pk>/", generic_get_detail, name=detail_url))
+        operations.append(path(f"{detail_url}/<str:pk>/", generic_get_detail, name=f"api-{detail_url}"))
     if exclude is None or CrudOps.CREATE not in exclude:
-        operations.append(path(f"{create_url}/", generic_create, name=create_url))
+        operations.append(path(f"{create_url}/", generic_create, name=f"api-{create_url}"))
     if exclude is None or CrudOps.UPDATE not in exclude:
-        operations.append(path(f"{update_url}/<str:pk>/", generic_update, name=update_url))
+        operations.append(path(f"{update_url}/<str:pk>/", generic_update, name=f"api-{update_url}"))
     if exclude is None or CrudOps.DELETE not in exclude:
-        operations.append(path(f"{delete_url}/<str:pk>/", generic_delete, name=delete_url))
+        operations.append(path(f"{delete_url}/<str:pk>/", generic_delete, name=f"api-{delete_url}"))
     if exclude is None or CrudOps.MODEL not in exclude:
-        operations.append(path(f"{model_url}/", generic_inspect, name=f"{model_url}-inspect"))
+        operations.append(path(f"{model_url}/", generic_inspect, name=f"api-{model_url}-inspect"))
 
     return operations
 
