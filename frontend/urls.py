@@ -70,7 +70,7 @@ for app in applist:
 
                             class Meta:
                                 model = model
-                                exclude = ()
+                                exclude = ()  # We must either specify 'fields' or 'exclude'
 
                         FormClass.__name__ = form_class_name
 

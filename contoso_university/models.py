@@ -103,7 +103,7 @@ class EnrollmentManager(Manager):
     """ Selects related course and student by default, so we can display their names. """
 
     def get_queryset(self) -> QuerySet['Enrollment']:
-        return super(EnrollmentManager, self).select_related('course', 'student')
+        return super(EnrollmentManager, self).select_related('team_course', 'student')
 
 
 class Enrollment(Model):
@@ -120,5 +120,3 @@ class Enrollment(Model):
 
     def __str__(self):
         return f"{self.student.first_name} - {self.team_course.course.title} | [{self.grade or '-'}]"
-
-

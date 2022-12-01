@@ -8,6 +8,7 @@ from inspect import isabstract
 from django.contrib import admin
 from django.db import transaction
 from django.shortcuts import render
+from django.template import RequestContext
 from django.urls import reverse_lazy
 from typing import Iterable, Sequence, Type
 from crispy_forms.helper import FormHelper
@@ -15,8 +16,8 @@ from django.db.models import QuerySet, Model
 from crispy_forms.utils import TEMPLATE_PACK
 from django.http import HttpResponseRedirect
 from django.template.loader import render_to_string
-from django.contrib.admin import ModelAdmin, BooleanFieldListFilter
-from django.forms import ModelForm, Form, ChoiceField, inlineformset_factory
+from django.contrib.admin import ModelAdmin, BooleanFieldListFilter, TabularInline
+from django.forms import ModelForm, Form, ChoiceField, inlineformset_factory, MediaDefiningClass
 from django.views.generic import DeleteView, CreateView, ListView, UpdateView
 from crispy_forms.layout import Layout, Div, Fieldset, LayoutObject, HTML, ButtonHolder, Submit
 
@@ -30,7 +31,7 @@ class Formset(LayoutObject):
         if template:
             self.template = template
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
+    def render(self, form, form_style, context: RequestContext, template_pack=TEMPLATE_PACK):
         formset = context[self.formset_name_in_context]
         return render_to_string(self.template, {'formset': formset})
 
@@ -132,7 +133,7 @@ class AdminDependantMixIn:
         # Not strictly necessary, maybe the user wants to use a fake admin.
         # TODO Kevin: Uncomment when isabstract() starts returning True,
         #   for ABC subclasses that dont define any @abstractmethod.
-        #   We will currently get an obscure error if not subclass defines a model.
+        #   We will currently get an obscure error if no subclass defines the model.
         #assert isabstract(cls) or cls.model is not None, f"{cls.__qualname__} should implement a 'model' attribute"
 
         if cls.model is not None:  # Wait for a subclass that defines a model
@@ -335,67 +336,55 @@ class GenericCreateView(AdminDependantMixIn, ABC, CreateView):
     def get_context_data(self, **kwargs):
         data = super(GenericCreateView, self).get_context_data(**kwargs)
         adminmodel = self.adminmodel
-        inlinelist = []
-        if adminmodel.inlines:
-            for inline in adminmodel.inlines:
+        inlinelist: list[InlineFormSet] = []
+        inlines: Iterable[TabularInline] = (adminmodel.inlines or ())
+        for inline in inlines:
 
-                fieldlist = []
-                if self.inlineform_fields:
-                    fieldlist = self.inlineform_fields
-                elif inline.fields:
-                    fieldlist = inline.fields
-                else:
-                    for i in inline.model._meta.fields:
-                        if i.editable is False:
-                            continue
-                        else:
-                            fieldlist.append(i.name)
+            fieldlist: Iterable[str]
+            if self.inlineform_fields:
+                fieldlist = self.inlineform_fields
+            elif inline.fields:
+                fieldlist = inline.fields
+            else:
+                fieldlist = *(i.name for i in inline.model._meta.fields if i.editable and i.name not in (inline.exclude or ())),
 
-                if inline.exclude:
-                    for item in inline.exclude:
-                        if item in fieldlist:
-                            fieldlist.remove(item)
-                if inline.model._meta._property_names:
-                    lst = [property for property in inline.model._meta._property_names if property in fieldlist]
-                    lst2 = [prop for prop in inline.model._meta._property_names if prop in inline.readonly_fields]
+            if inline.model._meta._property_names:
+                lst = [property for property in inline.model._meta._property_names if property in fieldlist]
+                lst2 = [prop for prop in inline.model._meta._property_names if prop in inline.readonly_fields]
 
-                    if lst or len(lst2) == len(inline.model._meta._property_names):
-                        continue
+                if lst or len(lst2) == len(inline.model._meta._property_names):
+                    continue
 
-                class gform(inline.form):
-                    inlinemodel = inline
+            class gform(inline.form):
+                inlinemodel = inline
 
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        self.helper = FormHelper()
-                        self.helper.form_show_labels = False
-                        try:
-                            if inline.readonly_fields:
-                                for i in inline.readonly_fields:
-                                    if i in inline.model._meta._property_names:
-                                        continue
-                                    self.fields[i].widget.attrs['readonly'] = True
-                        except Exception:
-                            pass
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.helper = FormHelper()
+                    self.helper.form_show_labels = False
+                    try:
+                        if inline.readonly_fields:
+                            for i in inline.readonly_fields:
+                                if i in inline.model._meta._property_names:
+                                    continue
+                                self.fields[i].widget.attrs['readonly'] = True
+                    except Exception:
+                        pass
 
-                        if hasattr(self.inlinemodel, 'formfield_overrides'):
-                            for field, value in self.fields.items():
-                                widget_override = next((widget['widget'] for cls, widget in self.inlinemodel.formfield_overrides.items() if cls == getattr(self.inlinemodel.model, field).field.__class__), None)
-                                if widget_override:
-                                    value.widget = widget_override
+                    if hasattr(self.inlinemodel, 'formfield_overrides'):
+                        for field, value in self.fields.items():
+                            widget_override = next((widget['widget'] for cls, widget in self.inlinemodel.formfield_overrides.items() if cls == getattr(self.inlinemodel.model, field).field.__class__), None)
+                            if widget_override:
+                                value.widget = widget_override
 
-                    class Meta:
-                        model = inline.model
-                        fields = fieldlist
+                class Meta:
+                    model = inline.model
+                    fields = fieldlist
 
-                ex = 1
-                if inline.extra:
-                    if inline.extra != 0:
-                        ex = inline.extra
-                InlineFormSet = inlineformset_factory(self.model, inline.model, form=gform, extra=ex,
-                                                      can_delete=True)
+            InlineFormSet = inlineformset_factory(self.model, inline.model, form=gform, extra=inline.extra,
+                                                  can_delete=True)
 
-                inlinelist.append(InlineFormSet)
+            inlinelist.append(InlineFormSet)
         if self.request.POST:
 
             temp = self.request.POST.copy()
@@ -405,14 +394,11 @@ class GenericCreateView(AdminDependantMixIn, ABC, CreateView):
                     break
 
             if adminmodel.inlines:
-                inlinePOSTlist = []
-                for inline in inlinelist:
-                    inlinePOSTlist.append(inline(temp))
-                data['inline'] = inlinePOSTlist
+                data['inline'] = [inline(temp) for inline in inlinelist]
             else:
                 data['inline'] = None
         else:
-            data['inline'] = inlinelist
+            data['inline'] = [inline(instance=self.object) for inline in inlinelist]
         data['current_model'] = adminmodel.model._meta.verbose_name
         return data
 
@@ -447,7 +433,7 @@ class GenericUpdateView(AdminDependantMixIn, ABC, UpdateView):
                     fieldlist = self.inlineform_fields
                 elif inline.form.base_fields:
                     for field in inline.form.base_fields:
-                        fieldlist.append(f'{field}')
+                        fieldlist.append(field)
                 elif inline.fields:
                     fieldlist = inline.fields
                 else:
@@ -479,7 +465,7 @@ class GenericUpdateView(AdminDependantMixIn, ABC, UpdateView):
                                     if i in inline.model._meta._property_names:
                                         continue
                                     self.fields[i].widget.attrs['readonly'] = True
-                        except:
+                        except Exception:
                             pass
 
                     class Meta:
@@ -507,10 +493,7 @@ class GenericUpdateView(AdminDependantMixIn, ABC, UpdateView):
             else:
                 data['inline'] = None
         else:
-            inlinePOSTlist = []
-            for inline in inlinelist:
-                inlinePOSTlist.append(inline(instance=self.object))
-            data['inline'] = inlinePOSTlist
+            data['inline'] = [inline(instance=self.object) for inline in inlinelist]
         data['object'] = self.object
         data['delete_url'] = f'{self.model._meta.model_name}-delete'
         return data
