@@ -36,6 +36,7 @@ class InstructorAdmin(ModelAdmin):
     filter_horizontal = ('team_courses',)
     list_display = ('first_name', 'office_assignment', )
     search_fields = ('first_name', 'last_name',)
+    list_filter = ('team_courses',)
 
 
 # Register your models here.

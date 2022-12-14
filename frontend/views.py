@@ -394,11 +394,11 @@ class GenericCreateView(AdminDependantMixIn, ABC, CreateView):
                     break
 
             if adminmodel.inlines:
-                data['inline'] = [inline(temp) for inline in inlinelist]
+                data['inline'] = [inline(temp, prefix=f"formset-{index}") for index, inline in enumerate(inlinelist)]
             else:
                 data['inline'] = None
         else:
-            data['inline'] = [inline(instance=self.object) for inline in inlinelist]
+            data['inline'] = [inline(instance=self.object, prefix=f"formset-{index}") for index, inline in enumerate(inlinelist)]
         data['current_model'] = adminmodel.model._meta.verbose_name
         return data
 
@@ -407,7 +407,7 @@ class GenericCreateView(AdminDependantMixIn, ABC, CreateView):
         inline = context['inline']
         with transaction.atomic():
             self.object = form.save()
-            for i in inline:
+            for i in (inline or ()):  # TODO Kevin: Inline is None
                 if i.is_valid():
                     i.instance = self.object
                     i.save()
@@ -486,14 +486,11 @@ class GenericUpdateView(AdminDependantMixIn, ABC, UpdateView):
                     break
 
             if adminmodel.inlines:
-                inlinePOSTlist = []
-                for inline in inlinelist:
-                    inlinePOSTlist.append(inline(temp, instance=self.object))
-                data['inline'] = inlinePOSTlist
+                data['inline'] = [inline(temp, instance=self.object, prefix=f"formset-{index}") for index, inline in enumerate(inlinelist)]
             else:
                 data['inline'] = None
         else:
-            data['inline'] = [inline(instance=self.object) for inline in inlinelist]
+            data['inline'] = [inline(instance=self.object, prefix=f"formset-{index}") for index, inline in enumerate(inlinelist)]
         data['object'] = self.object
         data['delete_url'] = f'{self.model._meta.model_name}-delete'
         return data
@@ -503,11 +500,14 @@ class GenericUpdateView(AdminDependantMixIn, ABC, UpdateView):
         inline = context['inline']
         with transaction.atomic():
             self.object = form.save()
-            for i in inline:
+            for i in (inline or ()):  # TODO Kevin: Inline is None
                 if i.is_valid():
                     i.instance = self.object
                     i.save()
         return super(GenericUpdateView, self).form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy(self.model._meta.model_name)
 
 
 class GenericDeleteView(DeleteView):

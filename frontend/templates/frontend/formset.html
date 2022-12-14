@@ -23,6 +23,7 @@
                 <td>
                     {# Include the hidden fields in the form #}
                     {% if forloop.first %}
+                        {% if form.instance.pk %}{{ form.DELETE }}{% endif %}
                         {% for hidden in form.hidden_fields %}
                             {{ hidden }}
                         {% endfor %}
@@ -38,13 +39,14 @@
     </table>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js">
     </script>
-    <script src="{% static 'mycollections/libraries/django-dynamic-formset/jquery.formset.js' %}">
+    <script src="{% static 'dynamic_formsets/jquery.formset.js' %}">
     </script>
     <script type="text/javascript">
         $('.formset_row-{{ inline.prefix }}').formset({
-            addText: 'add another',
-            deleteText: 'remove',
+            // addText: 'add another',
+            // deleteText: 'remove',
             prefix: '{{ inline.prefix }}',
+            formCssClass: '{{ inline.prefix }}',
         });
     </script>
 <br>
