@@ -105,3 +105,5 @@ db.sqlite3
 *.swp
 
 media/
+
+secret_key.txt
