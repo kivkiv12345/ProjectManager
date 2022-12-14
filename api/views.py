@@ -44,7 +44,8 @@ def generic_serializer(crud_model: Type[Model], depth_limit: int = 0, field_excl
         # Generate a dictionary where keys are foreign key fields or related set field names, and values are serializers
         related_sets: dict[str, Type[ModelSerializer]] = {  # Serialize related sets, and disallow the related model from going back through the ForeignKey
             rel.related_name: generic_serializer(rel.related_model, depth_limit-1, {rel.remote_field.name})(many=True)
-            for rel in crud_model._meta.related_objects if rel.name not in field_exclude
+            # TODO Kevin: Not sure why we get a related set with None name
+            for rel in crud_model._meta.related_objects if rel.name not in field_exclude and rel.related_name is not None
         } | {  # Serialize ForeignKey, and disallow the related model from going back through the related set
             field.name: generic_serializer(field.related_model, depth_limit-1, {field.remote_field.name})(many=False)
             for field in crud_model._meta.fields if isinstance(field, ForeignKey) and field.name not in field_exclude
@@ -71,7 +72,8 @@ def generic_serializer(crud_model: Type[Model], depth_limit: int = 0, field_excl
         'to_internal_value': to_internal_value,
         'Meta': type('Meta', (), {
             "model": crud_model,
-            "fields": [field.name for field in chain(crud_model._meta.fields, crud_model._meta.related_objects) if field.name not in field_exclude],
+            # TODO kevin: hasattr() is a bit of a dirty fix
+            "fields": [field.name for field in chain(crud_model._meta.fields, crud_model._meta.related_objects) if field.name not in field_exclude and hasattr(crud_model, field.name)],
             "depth": depth_limit if related_sets else 0,  # We basically ignore depth, when we generate the classes ourselves ¯\_(ツ)_/¯
         })
     })
